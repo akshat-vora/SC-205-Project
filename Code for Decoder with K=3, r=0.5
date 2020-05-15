@@ -186,4 +186,9 @@ function [y] = path_metric_calculator(state, time)
      end
 end
 
+function [HD]=hamming_dist(A,B)  
+    C = abs(A-B);
+    HD = sum(C);
+end
+
 end
