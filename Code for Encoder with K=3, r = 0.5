@@ -1,0 +1,74 @@
+%% This is the MATLAB code 
+
+function [Trans] = encoder(Signal) 
+        state = '00';
+        len_sig = length(Signal);
+        Signal(len_sig+1) = 0;
+        Signal(len_sig+2) = 0;
+        for j=1:len_sig
+            if strcmp(state,'00')
+                [Trans(2*(j-1)+2),Trans(2*(j-1)+1),state] = State_fun_00(Signal(j));
+
+             else if strcmp(state,'10')
+                [Trans(2*(j-1)+2),Trans(2*(j-1)+1),state] = State_fun_10(Signal(j));
+
+                 else if strcmp(state,'11')
+                        [Trans(2*(j-1)+2),Trans(2*(j-1)+1),state] = State_fun_11(Signal(j));
+
+                        else if strcmp(state,'01')
+                                [Trans(2*(j-1)+2),Trans(2*(j-1)+1),state] = State_fun_01(Signal(j));
+                             end
+                       end
+                  end
+            end
+        end
+        
+%% Functions 
+        function[p0, p1, state] = State_fun_00(x)
+            if x==0
+                p0 = 0;
+                p1 = 0;
+                state = '00';
+            else
+                p0 = 1;
+                p1 = 1;
+                state = '10';
+            end
+        end
+        
+        function[p0, p1, state] = State_fun_01(x)
+            if x==0
+                p0 = 1;
+                p1 = 1;
+                state = '00';
+            else
+                p0 = 0;
+                p1 = 0;
+                state = '10';
+            end
+        end
+        
+        function[p0, p1, state] = State_fun_10(x)
+            if x==0
+                p0 = 1;
+                p1 = 0;
+                state = '01';
+            else
+                p0 = 0;
+                p1 = 1;
+                state = '11';
+            end
+        end
+        
+        function[p0, p1, state] = State_fun_11(x)
+            if x==0
+                p0 = 0;
+                p1 = 1;
+                state = '01';
+            else
+                p0 = 1;
+                p1 = 0;
+                state = '11';
+            end
+        end
+end
