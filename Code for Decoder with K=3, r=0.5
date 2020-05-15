@@ -1,0 +1,189 @@
+%% This is the MATLAB code
+
+function[y] = viterbidec(Rcvd)
+%{
+    Allias of state used in code
+    State 00 - 1
+    State 10 - 2
+    State 11 - 3
+    State 01 - 4
+%}
+
+
+global Signal;                 
+Signal = Rcvd;
+
+global previous_states;
+len = length(Signal);
+                                 
+previous_states = zeros(4,len/2+1);% This helps in kepping record of the previous state for each current state
+global branch_metric;
+branch_metric = 5*ones(4,4,len/2);
+
+global path_metric
+path_metric = zeros(4,len/2+1);
+
+for time = 1:len/2
+    for state1 = 1:4
+        for state2 = 1:4
+            branch_metric(state1,state2,time) = branch_metric_calculator(state1,state2,time);
+        end
+    end
+end
+
+for time = 1:len/2+1
+    for state = 1:4
+        path_metric(state,time) = path_metric_calculator(state,time);
+    end
+end
+
+
+
+%Trellis diagram formation
+%
+
+trellis = zeros(4, len/2 + 1);
+trellis(1,1) = 0;
+trellis(2:4,1) = inf;
+for i = 2:1:len/2+1
+    for j = 1:4        
+        trellis(j,i) = path_metric(j,i);            
+    end
+end
+
+%
+%End of trellis diagram formation
+
+%Trellis traceback
+%
+% min_PM = min(trellis(1:4, len/2+1));
+min_PM = trellis(1,len/2+1);
+minPM_state = 1;
+l = len/2;
+for j = 1:4
+    if trellis(j,i) ~= min_PM
+        trellis(j,i) = inf;
+    else
+        minPM_state = j;
+    end
+end
+for i = len/2+1:-1:1
+    if l == 0
+        break;
+    end
+    
+        
+    switch minPM_state
+        case 1
+            if previous_states(1,i) == 1
+                op(l) = 0;
+            else
+                op(l) = 0;
+            end
+        case 2
+            if previous_states(2,i) == 1
+                op(l) = 1;
+            else
+                op(l) = 1;
+            end
+        case 3
+            if previous_states(3,i) == 2
+                op(l) = 1;
+            else
+                op(l) = 1;
+            end
+        case 4
+            if previous_states(4,i) == 2
+                op(l) = 0;
+            else
+                op(l) = 0;
+            end            
+    end
+    
+    min_PM = min(trellis(1:4, l));
+    for j = 1:4
+        if trellis(j,l) ~= min_PM
+            trellis(j,l) = inf;
+        else
+            minPM_state = j;
+        end
+    end
+    l = l - 1;
+end
+%
+%Trellis traceback finished
+
+y = op;
+%Branch metric function defined
+
+function [branch_metric] = branch_metric_calculator(state1, state2, time)
+%     global Signal;
+    switch state1
+       
+        case 1
+            if state2 == 1
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,0]);
+            else  
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,1]);
+            end
+            
+        case 2
+            if state2 == 3
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,0]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,1]);
+            end
+            
+        case 3
+            if state2 == 3
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,1]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,0]);
+            end
+            
+        case 4
+            if state2 == 1
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,1]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,0]);
+            end
+    end
+end
+
+%Path metric function defined
+%
+function [y] = path_metric_calculator(state, time)
+%     global previous_states
+%     global path_metric;
+%     global branch_metric;
+    if time == 1
+        if state == 1
+            y = 0;
+        else
+            y = inf;
+        end
+              
+    
+    else
+        
+        if state == 1 || state == 2
+            y = min(path_metric(1,time-1) + branch_metric(1,state,time-1), path_metric(4,time-1) + branch_metric(4,state,time-1));
+            if y == path_metric(1,time-1) + branch_metric(1,state,time-1)
+                previous_states(state,time) = 1;
+            else
+                previous_states(state,time) = 4;
+            end
+        else
+            y = min(path_metric(3,time-1) + branch_metric(3,state,time-1), path_metric(2,time-1) + branch_metric(2,state,time-1));
+            if y == path_metric(3,time-1) + branch_metric(3,state,time-1)
+                previous_states(state,time) = 3;
+            else
+                previous_states(state,time) = 2;
+            end
+        end
+        
+    
+     end
+end
+
+end
