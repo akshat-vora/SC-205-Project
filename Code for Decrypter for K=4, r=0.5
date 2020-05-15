@@ -1,0 +1,318 @@
+%% this is MATLAB code
+
+clc;
+clearvars;
+%% Conversion of string to array of bits
+signal = input('Enter the string to decode: ');
+Signal_temp = dec2bin(double(signal));
+for i=1:length(signal)
+   if Signal_temp(i,1) == '1'
+       temp = abs(bin2dec(Signal_temp(i,:))-255);
+       temp1 = char(temp);
+       temp2 = dec2bin(double(temp1));
+       switch length(temp2)
+           case 1
+               Signal_temp(i,:) = strcat('0000000',temp2);
+           case 2
+               Signal_temp(i,:) = strcat('000000',temp2);
+           case 3
+               Signal_temp(i,:) = strcat('00000',temp2);
+           case 4
+               Signal_temp(i,:) = strcat('0000',temp2);
+           case 5
+               Signal_temp(i,:) = strcat('000',temp2);
+           case 6
+               Signal_temp(i,:) = strcat('00',temp2);
+       end
+   end
+end
+for i=1:length(signal)
+    Signal_temp(i,1) = 0;
+end
+for i=1:length(signal)
+    Signal_temp2(i,:) = Signal_temp(i,[2 3 4 5 6 7 8]);
+end
+vector = zeros(1,7*length(signal));
+for i =1: length(signal)
+    for j =1:7
+        vector((i-1)*7+j) = str2num(Signal_temp2(i,j));
+    end
+end
+%% Decoding 
+
+dec = viterbidec_r2(vector);
+decoded_string = '';
+for i=1:length(dec)/7
+    string_sig = num2str(dec(7*(i-1)+1));
+    string_sig = strcat(string_sig,num2str(dec(7*(i-1)+2)));
+    string_sig = strcat(string_sig,num2str(dec(7*(i-1)+3)));
+    string_sig = strcat(string_sig,num2str(dec(7*(i-1)+4)));
+    string_sig = strcat(string_sig,num2str(dec(7*(i-1)+5)));
+    string_sig = strcat(string_sig,num2str(dec(7*(i-1)+6)));
+    string_sig = strcat(string_sig,num2str(dec(7*(i-1)+7)));
+    decoded_string = strcat(decoded_string,char(bin2dec(string_sig)));
+    if strcmp(string_sig,'0100000')
+        decoded_string = strcat(decoded_string,{' '},'');
+    end
+    string_sig = '';
+end
+disp('Decrypted string: ')
+disp(decoded_string)
+
+function[Decoded] = viterbidec_r2(vector)
+%{
+    Allias of state used in code
+    State 000 - 1
+    State 001 - 2
+    State 010 - 3
+    State 011 - 4
+    State 100 - 5
+    State 101 - 6
+    State 110 - 7
+    State 111 - 8
+%}
+
+
+global Signal;                 %This is the input to be decoded
+Signal = vector;
+
+global previous_states;
+len = length(Signal);
+                                   %To keep  record of arc
+previous_states = zeros(8,len/2+1);
+global Branch_Metric;
+Branch_Metric = zeros(8,8,len/2);
+
+global Path_Metric
+Path_Metric = zeros(8,len/2+1);
+
+for time = 1:len/2
+    for s1 = 1:8
+        for s2 = 1:8
+            Branch_Metric(s1,s2,time) = branch_metric_calculator(s1,s2,time);
+        end
+    end
+end
+
+for time = 1:len/2+1
+    for s = 1:8
+        Path_Metric(s,time) = path_metric_calculator(s,time);
+    end
+end
+
+
+
+%Trellis diagram formation
+%
+
+trellis = zeros(8, len/2 + 1);
+trellis(1,1) = 0;
+trellis(2:8,1) = inf;
+for i = 2:1:len/2+1
+    for j = 1:8        
+        trellis(j,i) = Path_Metric(j,i);            
+    end
+end
+
+%
+%End of trellis diagram formation
+
+%Trellis traceback
+%
+ min_PM = min(trellis(1:8, len/2+1));
+% min_PM = trellis(1,len/2+1);
+minPM_state = 1;
+l = len/2;
+for j = 1:8
+    if trellis(j,i) ~= min_PM
+        trellis(j,i) = inf;
+    else
+        minPM_state = j;
+    end
+end
+for i = len/2+1:-1:1
+    if l == 0
+        break;
+    end
+    
+        
+    switch minPM_state
+        case 1
+            if previous_states(1,i) == 1
+                y(l) = 0;
+            else
+                y(l) = 0;
+            end
+        case 2
+            if previous_states(2,i) == 1
+                y(l) = 1;
+            else
+                y(l) = 1;
+            end
+        case 3
+            if previous_states(3,i) == 2
+                y(l) = 0;
+            else
+                y(l) = 0;
+            end
+        case 4
+            if previous_states(4,i) == 2
+                y(l) = 1;
+            else
+                y(l) = 1;
+            end   
+        case 5
+            if previous_states(5,i) == 3
+                y(l) = 0;
+            else
+                y(l) = 0;
+            end
+        case 6
+            if previous_states(6,i) == 3
+                y(l) = 1;
+            else
+                y(l) = 1;
+            end
+        case 7
+            if previous_states(7,i) == 4
+                y(l) = 0;
+            else
+                y(l) = 0;
+            end
+        case 8
+            if previous_states(7,i) == 4
+                y(l) = 1;
+            else
+                y(l) = 1;
+            end              
+    end
+    
+    min_PM = min(trellis(1:8, l));
+    for j = 1:8
+        if trellis(j,l) ~= min_PM
+            trellis(j,l) = inf;
+        else
+            minPM_state = j;
+        end
+    end
+    l = l - 1;
+end
+%
+%Trellis traceback finished
+
+Decoded = y;
+%Branch metric function defined
+
+function [branch_metric] = branch_metric_calculator(state1, state2, time)
+%     global Signal;
+    switch state1
+       
+        case 1
+            if state2 == 1
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,0]);
+            else  
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,1]);
+            end
+            
+        case 2
+            if state2 == 3
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,1]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,0]);
+            end
+            
+        case 3
+            if state2 == 5
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,1]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,0]);
+            end
+            
+        case 4
+            if state2 == 7
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,0]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,1]);
+            end
+        case 5
+            if state2 == 1
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,1]);
+            else 
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,0]);
+            end
+        case 6
+            if state2 == 3
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,0]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,1]);
+            end
+        case 7
+            if state2 == 5
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,0]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,1]);
+            end
+        case 8
+            if state2 == 7
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[0,1]);
+            else
+                branch_metric = hamming_dist([Signal(2*time-1),Signal(2*time)],[1,0]);
+            end
+    end
+end
+
+%Path metric function defined
+%
+function [y] = path_metric_calculator(state, time)
+%     global previous_states
+%     global Path_Metric;
+%     global Branch_Metric;
+    if time == 1
+        if state == 1
+            y = 0;
+        else
+            y = inf;
+        end
+              
+    
+    else
+        
+        if state == 1 || state == 2
+            y = min(Path_Metric(1,time-1) + Branch_Metric(1,state,time-1), Path_Metric(5,time-1) + Branch_Metric(5,state,time-1));
+            if y == Path_Metric(1,time-1) + Branch_Metric(1,state,time-1)
+                previous_states(state,time) = 1;
+            else
+                previous_states(state,time) = 5;
+            end
+        elseif state == 3 || state == 4
+            y = min(Path_Metric(2,time-1) + Branch_Metric(2,state,time-1), Path_Metric(6,time-1) + Branch_Metric(6,state,time-1));
+            if y == Path_Metric(2,time-1) + Branch_Metric(2,state,time-1)
+                previous_states(state,time) = 2;
+            else
+                previous_states(state,time) = 6;
+            end
+        elseif state == 5 || state == 6
+            y = min(Path_Metric(3,time-1) + Branch_Metric(3,state,time-1), Path_Metric(7,time-1) + Branch_Metric(7,state,time-1));
+            if y == Path_Metric(3,time-1) + Branch_Metric(3,state,time-1)
+                previous_states(state,time) = 3;
+            else
+                previous_states(state,time) = 7;
+            end
+        elseif state == 7 || state == 8
+            y = min(Path_Metric(4,time-1) + Branch_Metric(4,state,time-1), Path_Metric(8,time-1) + Branch_Metric(8,state,time-1));
+            if y == Path_Metric(4,time-1) + Branch_Metric(4,state,time-1)
+                previous_states(state,time) = 4;
+            else
+                previous_states(state,time) = 8;
+            end
+        end
+        
+    
+     end
+end
+
+function [HD]=hamming_dist(A,B)  
+    C = abs(A-B);
+    HD = sum(C);
+end
+end
