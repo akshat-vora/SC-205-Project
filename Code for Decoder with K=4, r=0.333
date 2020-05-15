@@ -1,0 +1,260 @@
+% This is MATLAB code
+
+function[y] = viterbidec_r3(vector)
+%{
+    Allias of state used in code
+    State 000 - 1
+    State 001 - 2
+    State 010 - 3
+    State 011 - 4
+    State 100 - 5
+    State 101 - 6
+    State 110 - 7
+    State 111 - 8
+%}
+
+
+global Signal;                 %This is the input to be decoded
+Signal = vector;
+
+global previous_states;
+len = length(Signal);
+                                   %To keep  record of arc
+previous_states = zeros(8,floor(len/3)+1);
+global BM;
+BM = zeros(8,8,floor(len/3));
+
+global PM
+PM = zeros(8,floor(len/3)+1);
+
+for time = 1:floor(len/3)
+    for s1 = 1:8
+        for s2 = 1:8
+            BM(s1,s2,time) = branch_metric_calculator(s1,s2,time);
+        end
+    end
+end
+
+for time = 1:floor(len/3)+1
+    for s = 1:8
+        PM(s,time) = path_metric_calculator(s,time);
+    end
+end
+
+
+
+%Trellis diagram formation
+%
+
+trellis_diagram = zeros(8, floor(len/3) + 1);
+trellis_diagram(1,1) = 0;
+trellis_diagram(2:8,1) = inf;
+for i = 2:1:floor(len/3)+1
+    for j = 1:8        
+        trellis_diagram(j,i) = PM(j,i);            
+    end
+end
+
+%
+%End of trellis diagram formation
+
+%Trellis traceback
+%
+ min_PM = min(trellis_diagram(1:8, floor(len/3)+1));
+% min_PM = trellis_diagram(1,floor(len/3)+1);
+minPM_state = 1;
+l = floor(len/3);
+for j = 1:8
+    if trellis_diagram(j,i) ~= min_PM
+        trellis_diagram(j,i) = inf;
+    else
+        minPM_state = j;
+    end
+end
+for i = floor(len/3)+1:-1:1
+    if l == 0
+        break;
+    end
+    
+        
+    switch minPM_state
+        case 1
+            if previous_states(1,i) == 1
+                op(l) = 0;
+            else
+                op(l) = 0;
+            end
+        case 2
+            if previous_states(2,i) == 1
+                op(l) = 1;
+            else
+                op(l) = 1;
+            end
+        case 3
+            if previous_states(3,i) == 2
+                op(l) = 0;
+            else
+                op(l) = 0;
+            end
+        case 4
+            if previous_states(4,i) == 2
+                op(l) = 1;
+            else
+                op(l) = 1;
+            end   
+        case 5
+            if previous_states(5,i) == 3
+                op(l) = 0;
+            else
+                op(l) = 0;
+            end
+        case 6
+            if previous_states(6,i) == 3
+                op(l) = 1;
+            else
+                op(l) = 1;
+            end
+        case 7
+            if previous_states(7,i) == 4
+                op(l) = 0;
+            else
+                op(l) = 0;
+            end
+        case 8
+            if previous_states(7,i) == 4
+                op(l) = 1;
+            else
+                op(l) = 1;
+            end              
+    end
+    
+    min_PM = min(trellis_diagram(1:8, l));
+    for j = 1:8
+        if trellis_diagram(j,l) ~= min_PM
+            trellis_diagram(j,l) = inf;
+        else
+            minPM_state = j;
+        end
+    end
+    l = l - 1;
+end
+%
+%Trellis traceback finished
+
+y = op;
+%Branch metric function defined
+
+function [branch_metric] = branch_metric_calculator(state1, state2, time)
+%     global Signal;
+    switch state1
+       
+        case 1
+            if state2 == 1
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,0,0]);
+            else  
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,1,1]);
+            end
+            
+        case 2
+            if state2 == 3
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,0,1]);
+            else
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,1,0]);
+            end
+            
+        case 3
+            if state2 == 5
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,1,1]);
+            else
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,0,0]);
+            end
+            
+        case 4
+            if state2 == 7
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,1,0]);
+            else
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,0,1]);
+            end
+        case 5
+            if state2 == 1
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,1,1]);
+            else 
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,0,0]);
+            end
+        case 6
+            if state2 == 3
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,1,0]);
+            else
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,0,1]);
+            end
+        case 7
+            if state2 == 5
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,0,0]);
+            else
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,1,1]);
+            end
+        case 8
+            if state2 == 7
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[0,0,1]);
+            else
+                branch_metric = hamming_dist([Signal(3*time-2),Signal(3*time-1),Signal(3*time)],[1,1,0]);
+            end
+    end
+end
+
+%Path metric function defined
+%
+function [y] = path_metric_calculator(state, time)
+%     global previous_states
+%     global PM;
+%     global BM;
+    if time == 1
+        if state == 1
+            y = 0;
+        else
+            y = inf;
+        end
+              
+    
+    else
+        
+        if state == 1 || state == 2
+            y = min(PM(1,time-1) + BM(1,state,time-1), PM(5,time-1) + BM(5,state,time-1));
+            if y == PM(1,time-1) + BM(1,state,time-1)
+                previous_states(state,time) = 1;
+            else
+                previous_states(state,time) = 5;
+            end
+        elseif state == 3 || state == 4
+            y = min(PM(2,time-1) + BM(2,state,time-1), PM(6,time-1) + BM(6,state,time-1));
+            if y == PM(2,time-1) + BM(2,state,time-1)
+                previous_states(state,time) = 2;
+            else
+                previous_states(state,time) = 6;
+            end
+        elseif state == 5 || state == 6
+            y = min(PM(3,time-1) + BM(3,state,time-1), PM(7,time-1) + BM(7,state,time-1));
+            if y == PM(3,time-1) + BM(3,state,time-1)
+                previous_states(state,time) = 3;
+            else
+                previous_states(state,time) = 7;
+            end
+        elseif state == 7 || state == 8
+            y = min(PM(4,time-1) + BM(4,state,time-1), PM(8,time-1) + BM(8,state,time-1));
+            if y == PM(4,time-1) + BM(4,state,time-1)
+                previous_states(state,time) = 4;
+            else
+                previous_states(state,time) = 8;
+            end
+        end
+        
+    
+     end
+end
+
+function [HD]=hamming_dist(A,B)  
+    C = abs(A-B);
+    HD = sum(C);
+end
+
+end
