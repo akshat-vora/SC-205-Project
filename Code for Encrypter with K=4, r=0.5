@@ -1,28 +1,22 @@
-%% This is MATLAB code
-
 clc;
 clearvars;
 %% Signal Generation
 
 Signal_str = input('Enter string: ');
-Signal_temp = dec2bin(double(Signal_str));
-
-Signal = zeros(1,7*length(Signal_str));
-for i =1: length(Signal_str)
+Signal_char = char(Signal_str);
+Signal_temp = dec2bin(double(Signal_char));
+Signal = zeros(1,7*length(Signal_char));
+for i =1: length(Signal_char)
     for j =1:7
         Signal((i-1)*7+j) = str2num(Signal_temp(i,j));
     end
-end
-    
+end   
+clearvars -except Signal
 %% Encoder
 encoded_signal = encoder(Signal);
-disp('Original Signal:');
-disp(Signal_str);
+clearvars -except encoded_signal
 clc;
 disp('Encoded Signal:');
-
-
-
 %% Converting to binary ASCII Strings
 encoded_string = '';
 for i=1:length(encoded_signal)/7
@@ -41,8 +35,9 @@ for i=1:length(encoded_signal)/7
     end
     string_sig = '';
 end
-disp(encoded_string);
-
+clearvars -except encoded_string
+encoded_string = convertCharsToStrings(encoded_string);
+disp(encoded_string)
 %% Functions
 function [Trans] = encoder(Signal)
     state = '000';
@@ -67,7 +62,6 @@ function [Trans] = encoder(Signal)
         end
     end
 end
-
 function[p0, p1, state] = State_fun_000(x)
     if x==0
         p0 = 0;
